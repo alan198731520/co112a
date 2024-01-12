@@ -4,4 +4,4 @@
 4的fill看懂,mult看了不懂
 
 
-5的全部複製https://github.com/edunfelt/nand2tetris/tree/master/projects/05
+5的全部複製 https://github.com/edunfelt/nand2tetris/tree/master/projects/05 並翻譯註解

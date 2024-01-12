@@ -40,4 +40,42 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    /** 指令解碼:
+    * 指令中有三個 d 位元，{A, D, M}，決定了哪個註冊接受 ALU 的輸出。**/
+    DMux(in=true, sel=instruction[15], a=atype, b=ctype);
+    Or(a=atype, b=instruction[5], out=ainstruct);
+    And(a=ctype, b=instruction[4], out=cinstruct);
+
+    /** A 註冊 **/
+    Mux16(a=aluout, b=instruction, sel=atype, out=toareg);
+    ARegister(in=toareg, load=ainstruct, out=aregout, out[0..14]=addressM);
+
+    /** D 註冊和 ALU **/
+    Mux16(a=aregout, b=inM, sel=instruction[12], out=inputsel);
+
+    ALU(x=dregout, y=inputsel, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], 
+    f=instruction[7], no=instruction[6], out=aluout, zr=zrout, ng=ngout, out=outM);
+    And(a=ctype, b=instruction[3], out=writeM);
+
+    DRegister(in=aluout, load=cinstruct, out=dregout);
+
+    /** 程序計數器:
+    * 我們需要在 PC=A 和 PC++ 之間進行選擇（默認情況下是 PC++）。 跳躍條件決定是否發生 PC=A。
+    * 我們知道從 Hack 機器語言中有六種不同的條件，除了默認的 JMP 外，它們是 JGT、JEQ、JGE、JLT、JNE 和 JLE。
+    * 然而，我們只需要 JGT 和 JLE 來應對所有情況。 我們通過 ALU 的 'zrout' 和 'ngout' 輸出來協助我們，它們確定輸出是否為零或負。
+    * 指令的前三位確定跳躍條件，每個位元的功能在 "The Elements of Computing Systems" 的圖4.5中可見。**/
+    Or(a=zrout, b=ngout, out=leqzero);     // ALU 告訴我們是否 out <= 0
+    Not(in=leqzero, out=posout);           // 如果不是，out>0
+
+    And(a=instruction[0], b=posout, out=jgt);    // 如果 out>0 跳躍
+    And(a=instruction[1], b=zrout, out=jeq);    // 如果 out=0 跳躍
+    And(a=instruction[2], b=ngout, out=jlt);    // 如果 out<0 跳躍
+    Or(a=jeq, b=jlt, out=jle);           // 如果 out<=0 跳躍
+    Or(a=jgt, b=jle, out=jmp);           // 涵蓋所有跳躍條件
+
+    And(a=jmp, b=ctype, out=dojump);     // C 指令告訴我們跳躍
+    Not(in=dojump, out=nojump);          // 或增加
+
+    PC(in=aregout, load=dojump, inc=nojump, reset=reset, out[0..14]=pc);
+
 }
